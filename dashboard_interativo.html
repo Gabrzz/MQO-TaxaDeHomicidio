@@ -1,0 +1,637 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulador Econométrico Interativo: Viés de Variável Omitida</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Fira+Code:wght@400;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: rgba(30, 41, 59, 0.75);
+            --border: rgba(255, 255, 255, 0.1);
+            --text-main: #f8fafc;
+            --text-muted: #94a3b8;
+            --accent: #38bdf8;
+            --red: #ef4444;
+            --green: #10b981;
+            --blue: #3b82f6;
+            --yellow: #f59e0b;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: 'Inter', sans-serif;
+            background: radial-gradient(circle at top, #1e293b 0%, #0f172a 100%);
+            color: var(--text-main);
+            min-height: 100vh;
+            padding: 24px;
+        }
+        .container { max-width: 1400px; margin: 0 auto; }
+        header {
+            margin-bottom: 24px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            border-bottom: 1px solid var(--border);
+            padding-bottom: 16px;
+        }
+        h1 {
+            font-size: 1.55rem;
+            font-weight: 700;
+            background: linear-gradient(90deg, #38bdf8, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .badge {
+            background: rgba(56, 189, 248, 0.15);
+            color: #38bdf8;
+            padding: 5px 14px;
+            border-radius: 999px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            border: 1px solid rgba(56, 189, 248, 0.3);
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 24px;
+        }
+        @media (max-width: 1080px) { .grid { grid-template-columns: 1fr; } }
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--border);
+            border-radius: 16px;
+            padding: 20px;
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+        }
+        .section-title {
+            font-size: 0.95rem;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.05em;
+            color: var(--accent);
+            margin-bottom: 16px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+        .control-group { margin-bottom: 18px; }
+        .control-label {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.85rem;
+            font-weight: 500;
+            margin-bottom: 6px;
+        }
+        .control-val {
+            font-family: 'Fira Code', monospace;
+            font-weight: 600;
+            color: var(--accent);
+        }
+        input[type="range"] {
+            width: 100%;
+            height: 6px;
+            border-radius: 3px;
+            background: #334155;
+            outline: none;
+            cursor: pointer;
+            accent-color: var(--accent);
+        }
+        .toggles {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-top: 14px;
+        }
+        .toggle-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.85rem;
+            cursor: pointer;
+            user-select: none;
+        }
+        .toggle-item input { cursor: pointer; }
+        .metric-cards {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 12px;
+            margin-bottom: 20px;
+        }
+        @media (max-width: 900px) { .metric-cards { grid-template-columns: repeat(2, 1fr); } }
+        .metric-card {
+            background: rgba(15, 23, 42, 0.65);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 14px;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .metric-title {
+            font-size: 0.72rem;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-bottom: 4px;
+            font-weight: 600;
+        }
+        .metric-value {
+            font-family: 'Fira Code', monospace;
+            font-size: 1.35rem;
+            font-weight: 700;
+        }
+        .metric-sub {
+            font-size: 0.68rem;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+        .canvas-container {
+            position: relative;
+            width: 100%;
+            height: 480px;
+            background: rgba(15, 23, 42, 0.5);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            overflow: hidden;
+        }
+        canvas { width: 100%; height: 100%; display: block; }
+        .legend {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 16px;
+            margin-top: 14px;
+            font-size: 0.8rem;
+            padding: 10px 14px;
+            background: rgba(15, 23, 42, 0.5);
+            border-radius: 8px;
+            border: 1px solid var(--border);
+        }
+        .legend-item { display: flex; align-items: center; gap: 7px; }
+        .legend-color { width: 20px; height: 4px; border-radius: 2px; }
+        .wooldridge-box {
+            background: rgba(15, 23, 42, 0.75);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 14px;
+            margin-top: 18px;
+            font-family: 'Fira Code', monospace;
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }
+        .notice-banner {
+            margin-top: 14px;
+            padding: 10px 12px;
+            background: rgba(59, 130, 246, 0.12);
+            border-left: 3px solid var(--blue);
+            border-radius: 4px;
+            font-size: 0.78rem;
+            line-height: 1.4;
+            color: #93c5fd;
+        }
+        .tooltip {
+            position: absolute;
+            background: rgba(15, 23, 42, 0.95);
+            border: 1px solid var(--accent);
+            color: #fff;
+            padding: 8px 12px;
+            border-radius: 6px;
+            font-size: 0.75rem;
+            pointer-events: none;
+            display: none;
+            z-index: 100;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <div>
+                <h1>Laboratório Econométrico Interativo: Viés de Variável Omitida</h1>
+                <p style="color: var(--text-muted); font-size: 0.85rem; margin-top: 4px;">
+                    Simulação dinâmica com dados estaduais do Brasil (Ipeadata 2014)
+                </p>
+            </div>
+            <div class="badge">N = 27 UFs | MQO / OLS</div>
+        </header>
+
+        <div class="grid">
+            <!-- PAINEL DE CONTROLES -->
+            <div class="card">
+                <div class="section-title">Controles das Variáveis Explicativas</div>
+
+                <!-- 1. GINI -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Índice de Gini (Desigualdade)</span>
+                        <span class="control-val" id="val-gini">0.505</span>
+                    </div>
+                    <input type="range" id="slider-gini" min="0.380" max="0.620" step="0.005" value="0.5045">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                        <span>0.38 (Menos desigual)</span>
+                        <span>0.50 (Média)</span>
+                        <span>0.62 (Mais desigual)</span>
+                    </div>
+                </div>
+
+                <!-- 2. DESEMPREGO (COM IMPACTO DIRETO VISÍVEL) -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>Taxa de Desemprego (%)</span>
+                        <span class="control-val" id="val-desemp" style="color: var(--blue);">6.68%</span>
+                    </div>
+                    <input type="range" id="slider-desemp" min="2.0" max="14.0" step="0.1" value="6.68">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                        <span>2.0% (Mín: SC)</span>
+                        <span>6.7% (Média)</span>
+                        <span>14.0% (Crise)</span>
+                    </div>
+                </div>
+
+                <!-- 3. PIB PER CAPITA -->
+                <div class="control-group">
+                    <div class="control-label">
+                        <span>PIB Estadual per capita (R$ mil)</span>
+                        <span class="control-val" id="val-pib">R$ 17.84k</span>
+                    </div>
+                    <input type="range" id="slider-pib" min="8.0" max="52.0" step="0.5" value="17.84">
+                    <div style="display:flex; justify-content:space-between; font-size:0.7rem; color:var(--text-muted); margin-top:2px;">
+                        <span>R$ 8.2k (MA)</span>
+                        <span>R$ 17.8k (Média)</span>
+                        <span>R$ 51.1k (DF)</span>
+                    </div>
+                </div>
+
+                <div class="section-title" style="margin-top: 22px;">Camadas Visuais do Gráfico</div>
+                <div class="toggles">
+                    <label class="toggle-item">
+                        <input type="checkbox" id="chk-simples" checked>
+                        <span>Modelo 3: Simples (Linha Vermelha Contínua)</span>
+                    </label>
+                    <label class="toggle-item">
+                        <input type="checkbox" id="chk-multiplo" checked>
+                        <span>Modelo 2: Benchmark c/ Gini (Linha Verde Tracejada)</span>
+                    </label>
+                    <label class="toggle-item">
+                        <input type="checkbox" id="chk-completo" checked>
+                        <span>Modelo 1: Completo c/ Desemprego (Linha Azul Pontilhada)</span>
+                    </label>
+                </div>
+
+                <div class="notice-banner">
+                    <strong>Por que o Desemprego desloca o Modelo 1 (Linha Azul)?</strong><br>
+                    O coeficiente estimado é <strong>β̂₃ = +2.6029</strong>. Cada ponto percentual a mais de desemprego eleva a previsão em 2,6 homicídios por 100k hab.
+                    Contudo, sua inclusão gera multicolinearidade com o Gini (r = +0.767) e tem p = 0.120 (não significante).
+                </div>
+
+                <div class="wooldridge-box">
+                    <div style="color:var(--accent); font-weight:600; margin-bottom:4px;">IDENTIDADE DE WOOLDRIDGE:</div>
+                    β̃₁ = β̂₁ + (β̂₂ × δ̃₁)<br>
+                    -12.2465 = -11.1903 + (70.7016 × -0.0149)<br>
+                    Viés = <span style="color:var(--red); font-weight:bold;">-1.0563</span> (Superestimação do PIB)
+                </div>
+            </div>
+
+            <!-- PAINEL DE VISUALIZAÇÃO E PREVISÕES -->
+            <div class="card">
+                <div class="metric-cards">
+                    <!-- CARD 1 -->
+                    <div class="metric-card" style="border-top: 3px solid var(--red);">
+                        <div class="metric-title">Mod. 3: Simples</div>
+                        <div class="metric-value" style="color: var(--red);" id="card-simples">--</div>
+                        <div class="metric-sub">Ỹ = 69.37 - 12.25 · ln(PIB)</div>
+                    </div>
+                    <!-- CARD 2 -->
+                    <div class="metric-card" style="border-top: 3px solid var(--green);">
+                        <div class="metric-title">Mod. 2: Benchmark</div>
+                        <div class="metric-value" style="color: var(--green);" id="card-multiplo">--</div>
+                        <div class="metric-sub">Controlado pelo Gini</div>
+                    </div>
+                    <!-- CARD 3 -->
+                    <div class="metric-card" style="border-top: 3px solid var(--blue);">
+                        <div class="metric-title">Mod. 1: Completo</div>
+                        <div class="metric-value" style="color: var(--blue);" id="card-completo">--</div>
+                        <div class="metric-sub">Gini + Desemprego</div>
+                    </div>
+                    <!-- CARD 4 -->
+                    <div class="metric-card" style="border-top: 3px solid var(--accent);">
+                        <div class="metric-title">Impacto Desemprego</div>
+                        <div class="metric-value" style="color: var(--accent);" id="card-impacto-des">--</div>
+                        <div class="metric-sub">vs. Média Amostral (6.7%)</div>
+                    </div>
+                </div>
+
+                <div class="canvas-container" id="container-plot">
+                    <canvas id="plot"></canvas>
+                    <div class="tooltip" id="tooltip"></div>
+                </div>
+
+                <div class="legend">
+                    <div class="legend-item">
+                        <div style="width:10px; height:10px; border-radius:50%; background:#2c3e50; border:1px solid #fff;"></div>
+                        <span>27 UFs (Reais)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:var(--red);"></div>
+                        <span>Mod. 3 Simples (Linha Contínua)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:var(--green); border-top: 2px dashed var(--green); height:0;"></div>
+                        <span>Mod. 2 Benchmark (Tracejada Verde - Gini)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color" style="background:var(--blue); border-top: 2px dotted var(--blue); height:0;"></div>
+                        <span>Mod. 1 Completo (Pontilhada Azul - Desemprego)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div style="width:12px; height:12px; border-radius:50%; background:var(--yellow); border:2px solid #fff;"></div>
+                        <span>Previsão Mod. 2</span>
+                    </div>
+                    <div class="legend-item">
+                        <div style="width:12px; height:12px; border-radius:50%; background:var(--blue); border:2px solid #fff;"></div>
+                        <span>Previsão Mod. 1</span>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Coeficientes dos Modelos MQO
+        const b0_simp = 69.365502;
+        const b1_simp = -12.246518;
+
+        const b0_mult = 30.767989;
+        const b1_mult = -11.190251;
+        const b2_gini = 70.701616;
+
+        const b0_comp = 56.202464;
+        const b1_comp = -8.028306;
+        const b2_comp_gini = -31.574340;
+        const b3_comp_des = 2.602910;
+        const des_medio = 6.68148;
+
+        const dadosEstados = [{"uf": "AC", "pib_pc": 12.57, "ln_pib_pc": 2.531, "taxa_homicidios": 29.0, "gini": 0.529, "desemprego": 6.3}, {"uf": "AL", "pib_pc": 9.1, "ln_pib_pc": 2.2082, "taxa_homicidios": 65.9, "gini": 0.527, "desemprego": 9.5}, {"uf": "AM", "pib_pc": 16.5, "ln_pib_pc": 2.8036, "taxa_homicidios": 34.0, "gini": 0.562, "desemprego": 7.9}, {"uf": "AP", "pib_pc": 13.16, "ln_pib_pc": 2.5775, "taxa_homicidios": 35.1, "gini": 0.523, "desemprego": 9.6}, {"uf": "BA", "pib_pc": 10.92, "ln_pib_pc": 2.3906, "taxa_homicidios": 42.1, "gini": 0.528, "desemprego": 9.8}, {"uf": "CE", "pib_pc": 10.52, "ln_pib_pc": 2.3529, "taxa_homicidios": 52.9, "gini": 0.522, "desemprego": 6.6}, {"uf": "DF", "pib_pc": 51.06, "ln_pib_pc": 3.933, "taxa_homicidios": 30.5, "gini": 0.574, "desemprego": 8.8}, {"uf": "ES", "pib_pc": 24.45, "ln_pib_pc": 3.1968, "taxa_homicidios": 42.5, "gini": 0.499, "desemprego": 6.2}, {"uf": "GO", "pib_pc": 18.66, "ln_pib_pc": 2.9264, "taxa_homicidios": 44.2, "gini": 0.458, "desemprego": 5.1}, {"uf": "MA", "pib_pc": 8.27, "ln_pib_pc": 2.1131, "taxa_homicidios": 36.4, "gini": 0.475, "desemprego": 7.2}, {"uf": "MG", "pib_pc": 18.38, "ln_pib_pc": 2.9113, "taxa_homicidios": 23.2, "gini": 0.49, "desemprego": 6.3}, {"uf": "MS", "pib_pc": 22.23, "ln_pib_pc": 3.1015, "taxa_homicidios": 27.4, "gini": 0.473, "desemprego": 3.9}, {"uf": "MT", "pib_pc": 23.16, "ln_pib_pc": 3.1425, "taxa_homicidios": 42.1, "gini": 0.46, "desemprego": 4.1}, {"uf": "PA", "pib_pc": 11.38, "ln_pib_pc": 2.4321, "taxa_homicidios": 43.1, "gini": 0.508, "desemprego": 7.1}, {"uf": "PB", "pib_pc": 9.9, "ln_pib_pc": 2.2927, "taxa_homicidios": 39.9, "gini": 0.525, "desemprego": 8.2}, {"uf": "PE", "pib_pc": 12.34, "ln_pib_pc": 2.5125, "taxa_homicidios": 36.9, "gini": 0.566, "desemprego": 7.7}, {"uf": "PI", "pib_pc": 8.73, "ln_pib_pc": 2.1672, "taxa_homicidios": 22.1, "gini": 0.516, "desemprego": 6.0}, {"uf": "PR", "pib_pc": 23.17, "ln_pib_pc": 3.1429, "taxa_homicidios": 27.1, "gini": 0.464, "desemprego": 3.7}, {"uf": "RJ", "pib_pc": 30.07, "ln_pib_pc": 3.4036, "taxa_homicidios": 33.9, "gini": 0.512, "desemprego": 5.8}, {"uf": "RN", "pib_pc": 11.69, "ln_pib_pc": 2.4589, "taxa_homicidios": 48.6, "gini": 0.509, "desemprego": 10.5}, {"uf": "RO", "pib_pc": 14.36, "ln_pib_pc": 2.6643, "taxa_homicidios": 35.2, "gini": 0.443, "desemprego": 3.6}, {"uf": "RR", "pib_pc": 14.46, "ln_pib_pc": 2.6717, "taxa_homicidios": 34.3, "gini": 0.523, "desemprego": 6.5}, {"uf": "RS", "pib_pc": 23.55, "ln_pib_pc": 3.1592, "taxa_homicidios": 24.7, "gini": 0.479, "desemprego": 4.6}, {"uf": "SC", "pib_pc": 26.6, "ln_pib_pc": 3.2808, "taxa_homicidios": 13.4, "gini": 0.408, "desemprego": 2.7}, {"uf": "SE", "pib_pc": 12.45, "ln_pib_pc": 2.522, "taxa_homicidios": 50.7, "gini": 0.542, "desemprego": 9.1}, {"uf": "SP", "pib_pc": 31.13, "ln_pib_pc": 3.4381, "taxa_homicidios": 14.1, "gini": 0.508, "desemprego": 7.2}, {"uf": "TO", "pib_pc": 12.91, "ln_pib_pc": 2.5577, "taxa_homicidios": 26.4, "gini": 0.498, "desemprego": 6.4}];
+
+        // Elementos DOM
+        const sliderGini = document.getElementById('slider-gini');
+        const sliderDesemp = document.getElementById('slider-desemp');
+        const sliderPib = document.getElementById('slider-pib');
+        const valGini = document.getElementById('val-gini');
+        const valDesemp = document.getElementById('val-desemp');
+        const valPib = document.getElementById('val-pib');
+
+        const cardSimp = document.getElementById('card-simples');
+        const cardMult = document.getElementById('card-multiplo');
+        const cardComp = document.getElementById('card-completo');
+        const cardImpactoDes = document.getElementById('card-impacto-des');
+
+        const chkSimples = document.getElementById('chk-simples');
+        const chkMultiplo = document.getElementById('chk-multiplo');
+        const chkCompleto = document.getElementById('chk-completo');
+
+        const canvas = document.getElementById('plot');
+        const ctx = canvas.getContext('2d');
+        const tooltip = document.getElementById('tooltip');
+
+        function resizeCanvas() {
+            const rect = canvas.parentElement.getBoundingClientRect();
+            canvas.width = rect.width * window.devicePixelRatio;
+            canvas.height = rect.height * window.devicePixelRatio;
+            ctx.scale(window.devicePixelRatio, window.devicePixelRatio);
+            draw();
+        }
+        window.addEventListener('resize', resizeCanvas);
+
+        function calc() {
+            const gini = parseFloat(sliderGini.value);
+            const des = parseFloat(sliderDesemp.value);
+            const pib = parseFloat(sliderPib.value);
+            const lnPib = Math.log(pib);
+
+            valGini.innerText = gini.toFixed(3);
+            valDesemp.innerText = des.toFixed(1) + '%';
+            valPib.innerText = 'R$ ' + pib.toFixed(2) + 'k';
+
+            // 1. Modelo Simples
+            const predSimp = b0_simp + b1_simp * lnPib;
+            // 2. Modelo Benchmark (Gini)
+            const predMult = b0_mult + b1_mult * lnPib + b2_gini * gini;
+            // 3. Modelo Completo (Gini + Desemprego)
+            const predComp = b0_comp + b1_comp * lnPib + b2_comp_gini * gini + b3_comp_des * des;
+            // 4. Impacto do desemprego em relação à média
+            const impactoDes = b3_comp_des * (des - des_medio);
+
+            cardSimp.innerText = predSimp.toFixed(1);
+            cardMult.innerText = predMult.toFixed(1);
+            cardComp.innerText = predComp.toFixed(1);
+            cardImpactoDes.innerText = (impactoDes >= 0 ? '+' : '') + impactoDes.toFixed(2);
+
+            draw();
+        }
+
+        function draw() {
+            const rect = canvas.getBoundingClientRect();
+            const w = rect.width;
+            const h = rect.height;
+
+            ctx.clearRect(0, 0, w, h);
+
+            const padLeft = 60, padRight = 30, padTop = 30, padBottom = 50;
+            const plotW = w - padLeft - padRight;
+            const plotH = h - padTop - padBottom;
+
+            const minX = 2.0, maxX = 4.1;
+            const minY = 10, maxY = 70;
+
+            const toX = x => padLeft + ((x - minX) / (maxX - minX)) * plotW;
+            const toY = y => padTop + plotH - ((y - minY) / (maxY - minY)) * plotH;
+
+            // Grade e Eixos
+            ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#64748b';
+            ctx.font = '11px Inter, sans-serif';
+
+            for (let yVal = 10; yVal <= 70; yVal += 10) {
+                const py = toY(yVal);
+                ctx.beginPath();
+                ctx.moveTo(padLeft, py);
+                ctx.lineTo(w - padRight, py);
+                ctx.stroke();
+                ctx.fillText(yVal, padLeft - 28, py + 4);
+            }
+
+            for (let xVal = 2.0; xVal <= 4.0; xVal += 0.5) {
+                const px = toX(xVal);
+                ctx.beginPath();
+                ctx.moveTo(px, padTop);
+                ctx.lineTo(px, h - padBottom);
+                ctx.stroke();
+                ctx.fillText(xVal.toFixed(1), px - 10, h - padBottom + 20);
+            }
+
+            ctx.fillStyle = '#94a3b8';
+            ctx.font = 'bold 11px Inter, sans-serif';
+            ctx.fillText('Logaritmo do PIB per capita [ln_pib_pc]', padLeft + plotW / 2 - 100, h - 15);
+            ctx.save();
+            ctx.translate(16, padTop + plotH / 2 + 60);
+            ctx.rotate(-Math.PI / 2);
+            ctx.fillText('Taxa de Homicídios por 100k hab.', 0, 0);
+            ctx.restore();
+
+            const curGini = parseFloat(sliderGini.value);
+            const curDes = parseFloat(sliderDesemp.value);
+            const curPib = parseFloat(sliderPib.value);
+            const curLnPib = Math.log(curPib);
+
+            // 1. RETA SIMPLES (Contínua Vermelha)
+            if (chkSimples.checked) {
+                ctx.strokeStyle = '#ef4444';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([]);
+                ctx.beginPath();
+                for (let px = minX; px <= maxX; px += 0.05) {
+                    const py = b0_simp + b1_simp * px;
+                    const cx = toX(px), cy = toY(py);
+                    if (px === minX) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                }
+                ctx.stroke();
+            }
+
+            // 2. RETA MÚLTIPLA BENCHMARK (Tracejada Verde - reage ao Gini)
+            if (chkMultiplo.checked) {
+                ctx.strokeStyle = '#10b981';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([8, 6]);
+                ctx.beginPath();
+                for (let px = minX; px <= maxX; px += 0.05) {
+                    const py = (b0_mult + b2_gini * curGini) + b1_mult * px;
+                    const cx = toX(px), cy = toY(py);
+                    if (px === minX) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                }
+                ctx.stroke();
+            }
+
+            // 3. RETA COMPLETA (Pontilhada Azul - reage ao Gini E AO DESEMPREGO EM TEMPO REAL)
+            if (chkCompleto.checked) {
+                ctx.strokeStyle = '#3b82f6';
+                ctx.lineWidth = 2.5;
+                ctx.setLineDash([3, 4]);
+                ctx.beginPath();
+                for (let px = minX; px <= maxX; px += 0.05) {
+                    const py = (b0_comp + b2_comp_gini * curGini + b3_comp_des * curDes) + b1_comp * px;
+                    const cx = toX(px), cy = toY(py);
+                    if (px === minX) ctx.moveTo(cx, cy); else ctx.lineTo(cx, cy);
+                }
+                ctx.stroke();
+            }
+            ctx.setLineDash([]);
+
+            // PONTOS DOS ESTADOS (Observados)
+            dadosEstados.forEach(est => {
+                const cx = toX(est.ln_pib_pc);
+                const cy = toY(est.taxa_homicidios);
+
+                ctx.fillStyle = '#334155';
+                ctx.beginPath();
+                ctx.arc(cx, cy, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#94a3b8';
+                ctx.lineWidth = 1.2;
+                ctx.stroke();
+
+                if (['SP', 'SC', 'AL', 'SE', 'DF', 'RJ'].includes(est.uf)) {
+                    ctx.fillStyle = '#cbd5e1';
+                    ctx.font = 'bold 10px Inter, sans-serif';
+                    ctx.fillText(est.uf, cx + 8, cy + 3);
+                }
+            });
+
+            // PONTOS SIMULADOS
+            const simX = toX(curLnPib);
+
+            // Ponto Modelo 2 (Gini) - Amarelo
+            const predY2 = (b0_mult + b2_gini * curGini) + b1_mult * curLnPib;
+            const simY2 = toY(predY2);
+
+            // Ponto Modelo 1 (Completo c/ Desemprego) - Azul
+            const predY1 = (b0_comp + b2_comp_gini * curGini + b3_comp_des * curDes) + b1_comp * curLnPib;
+            const simY1 = toY(predY1);
+
+            // Linha conectando as duas previsões
+            if (chkMultiplo.checked && chkCompleto.checked) {
+                ctx.strokeStyle = 'rgba(255, 255, 255, 0.4)';
+                ctx.lineWidth = 1.5;
+                ctx.setLineDash([2, 3]);
+                ctx.beginPath();
+                ctx.moveTo(simX, simY2);
+                ctx.lineTo(simX, simY1);
+                ctx.stroke();
+                ctx.setLineDash([]);
+            }
+
+            if (chkMultiplo.checked) {
+                ctx.fillStyle = '#f59e0b';
+                ctx.beginPath();
+                ctx.arc(simX, simY2, 7, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+
+            if (chkCompleto.checked) {
+                ctx.fillStyle = '#3b82f6';
+                ctx.beginPath();
+                ctx.arc(simX, simY1, 6, 0, Math.PI * 2);
+                ctx.fill();
+                ctx.strokeStyle = '#ffffff';
+                ctx.lineWidth = 2;
+                ctx.stroke();
+            }
+        }
+
+        // Interação Hover
+        canvas.addEventListener('mousemove', e => {
+            const rect = canvas.getBoundingClientRect();
+            const mx = e.clientX - rect.left;
+            const my = e.clientY - rect.top;
+
+            const padLeft = 60, padRight = 30, padTop = 30, padBottom = 50;
+            const plotW = rect.width - padLeft - padRight;
+            const plotH = rect.height - padTop - padBottom;
+            const minX = 2.0, maxX = 4.1, minY = 10, maxY = 70;
+            const toX = x => padLeft + ((x - minX) / (maxX - minX)) * plotW;
+            const toY = y => padTop + plotH - ((y - minY) / (maxY - minY)) * plotH;
+
+            let hovered = null;
+            dadosEstados.forEach(est => {
+                const cx = toX(est.ln_pib_pc);
+                const cy = toY(est.taxa_homicidios);
+                const dist = Math.hypot(mx - cx, my - cy);
+                if (dist < 8) hovered = est;
+            });
+
+            if (hovered) {
+                tooltip.style.display = 'block';
+                tooltip.style.left = (mx + 15) + 'px';
+                tooltip.style.top = (my - 15) + 'px';
+                tooltip.innerHTML = `<strong>${hovered.uf}</strong><br>` +
+                    `Homicídios: ${hovered.taxa_homicidios}<br>` +
+                    `PIB pc: R$ ${hovered.pib_pc}k (ln: ${hovered.ln_pib_pc})<br>` +
+                    `Gini: ${hovered.gini}<br>` +
+                    `Desemprego: ${hovered.desemprego}%`;
+            } else {
+                tooltip.style.display = 'none';
+            }
+        });
+
+        [sliderGini, sliderDesemp, sliderPib].forEach(s => s.addEventListener('input', calc));
+        [chkSimples, chkMultiplo, chkCompleto].forEach(c => c.addEventListener('change', draw));
+
+        setTimeout(resizeCanvas, 50);
+        calc();
+    </script>
+</body>
+</html>
